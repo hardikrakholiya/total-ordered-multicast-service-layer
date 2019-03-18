@@ -43,7 +43,6 @@ public class MessengerServiceImpl implements MessengerService {
                 Socket clientRequest = serverSocket.accept();
                 Message incomingMessage = (Message) new ObjectInputStream(clientRequest.getInputStream()).readObject();
                 messageProcessorService.submit(new ReceiveIncomingMessage(incomingMessage));
-//                new MessageHandler(client).start();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,8 +69,8 @@ public class MessengerServiceImpl implements MessengerService {
     }
 
     private int clock = 0;
-    private final Map<String, Integer> msgAckCountMap = new HashMap<>();
     private List<Message> msgQ = new ArrayList<>();
+    private final Map<String, Integer> msgAckCountMap = new HashMap<>();
     private final Map<String, Boolean> msgAckSentMap = new HashMap<>();
 
     private Message createOutgoingMessage(String messageText, MessageType messageType) {
@@ -95,8 +94,6 @@ public class MessengerServiceImpl implements MessengerService {
                 e.printStackTrace();
             }
         }
-
-        System.out.println("sent: " + message);
     }
 
     private void multicastOverNetwork(Message message, Instance[] instances) {
@@ -113,6 +110,9 @@ public class MessengerServiceImpl implements MessengerService {
         try {
             switch (message.getMessageType()) {
                 case P2P:
+                    msgQ.add(message);
+                    Collections.sort(msgQ);
+                    break;
                 case MC:
                     msgQ.add(message);
                     Collections.sort(msgQ);
@@ -139,19 +139,26 @@ public class MessengerServiceImpl implements MessengerService {
         while (msgQ.size() > 0) {
             Message message = msgQ.get(0);
 
-            if (!msgAckSentMap.get(message.getId())) {
-                Message ack = createOutgoingMessage(message.getId(), ACK);
-                multicastOverNetwork(ack, getInstances());
-                msgAckSentMap.put(message.getId(), true);
-            }
-
-            if (msgAckCountMap.containsKey(message.getId()) && msgAckCountMap.get(message.getId()) == getInstances().length) {
+            if (message.getMessageType() == P2P) {
                 mailbox.put(message.getText());
                 msgQ.remove(0);
-            } else {
-                break;
-            }
 
+            } else if (message.getMessageType() == MC) {
+                if (!msgAckSentMap.get(message.getId())) {
+                    Message ack = createOutgoingMessage(message.getId(), ACK);
+                    multicastOverNetwork(ack, getInstances());
+                    msgAckSentMap.put(message.getId(), true);
+                }
+
+                if (msgAckCountMap.containsKey(message.getId()) && msgAckCountMap.get(message.getId()) == getInstances().length) {
+                    mailbox.put(message.getText());
+                    msgQ.remove(0);
+                    msgAckCountMap.remove(message.getId());
+                    msgAckSentMap.remove(message.getId());
+                } else {
+                    break;
+                }
+            }
         }
 
     }

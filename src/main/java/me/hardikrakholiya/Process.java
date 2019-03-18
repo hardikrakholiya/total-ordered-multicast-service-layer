@@ -28,17 +28,15 @@ public class Process implements Runnable {
             new Thread(messengerService).start();
 
             //start a thread to receive incoming message from the middleware
-            new MessageHandler().start();
+            new Thread(new ReceiveMessage()).start();
 
             //wait for the messengerService server to setup itself
             Thread.sleep(1000);
 
             String alphabet = "abcdefghijklmnopqrstuvwxyz";
-
             messengerService.multicast(String.valueOf(alphabet.charAt(id)), getInstances());
-
-//            messengerService.send("hello", getInstances()[(id + 1) % getInstances().length]);
-//            messengerService.send("world", getInstances()[(id + 1) % getInstances().length]);
+            messengerService.send("" + id, getInstances()[(id + 1) % getInstances().length]);
+            messengerService.send("" + id, getInstances()[(id + 2) % getInstances().length]);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,7 +52,7 @@ public class Process implements Runnable {
         return instance;
     }
 
-    private class MessageHandler extends Thread {
+    private class ReceiveMessage implements Runnable {
         @Override
         public void run() {
             while (true) {
