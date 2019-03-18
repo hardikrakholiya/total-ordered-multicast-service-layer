@@ -1,0 +1,1 @@
+java -jar target/total-ordered-multicast-1.0-SNAPSHOT.jar src/main/resources/config.properties
