@@ -69,9 +69,9 @@ public class MessengerServiceImpl implements MessengerService {
     }
 
     private int clock = 0;
-    private List<Message> msgQ = new ArrayList<>();
+    private PriorityQueue<Message> msgQ = new PriorityQueue<>();
     private final Map<String, Integer> msgAckCountMap = new HashMap<>();
-    private final Map<String, Boolean> msgAckSentMap = new HashMap<>();
+    private final Set<String> acknowledgedMsgs = new HashSet<>();
 
     private Message createOutgoingMessage(String messageText, MessageType messageType) {
         Message message;
@@ -111,12 +111,9 @@ public class MessengerServiceImpl implements MessengerService {
             switch (message.getMessageType()) {
                 case P2P:
                     msgQ.add(message);
-                    Collections.sort(msgQ);
                     break;
                 case MC:
                     msgQ.add(message);
-                    Collections.sort(msgQ);
-                    msgAckSentMap.put(message.getId(), false);
                     break;
                 case ACK:
                     if (!msgAckCountMap.containsKey(message.getText())) {
@@ -137,24 +134,24 @@ public class MessengerServiceImpl implements MessengerService {
     private void processMessageQueue() throws InterruptedException {
 
         while (msgQ.size() > 0) {
-            Message message = msgQ.get(0);
+            Message message = msgQ.peek();
 
             if (message.getMessageType() == P2P) {
                 mailbox.put(message.getText());
-                msgQ.remove(0);
+                msgQ.remove(message);
 
             } else if (message.getMessageType() == MC) {
-                if (!msgAckSentMap.get(message.getId())) {
+                if (!acknowledgedMsgs.contains(message.getId())) {
                     Message ack = createOutgoingMessage(message.getId(), ACK);
                     multicastOverNetwork(ack, getInstances());
-                    msgAckSentMap.put(message.getId(), true);
+                    acknowledgedMsgs.add(message.getId());
                 }
 
                 if (msgAckCountMap.containsKey(message.getId()) && msgAckCountMap.get(message.getId()) == getInstances().length) {
                     mailbox.put(message.getText());
-                    msgQ.remove(0);
+                    msgQ.remove(message);
                     msgAckCountMap.remove(message.getId());
-                    msgAckSentMap.remove(message.getId());
+                    acknowledgedMsgs.remove(message.getId());
                 } else {
                     break;
                 }
