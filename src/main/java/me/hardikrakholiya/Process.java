@@ -33,10 +33,8 @@ public class Process implements Runnable {
             //wait for the messengerService server to setup itself
             Thread.sleep(1000);
 
-            String alphabet = "abcdefghijklmnopqrstuvwxyz";
-            messengerService.multicast(String.valueOf(alphabet.charAt(id)), getInstances());
-            messengerService.send("" + id, getInstances()[(id + 1) % getInstances().length]);
-            messengerService.send("" + id, getInstances()[(id + 2) % getInstances().length]);
+            //send multicast and P2P messages from a schedule
+            new MessageGenerator().send();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -58,11 +56,31 @@ public class Process implements Runnable {
             while (true) {
                 try {
                     messages.add(messengerService.receive());
-                    System.out.println(messages);
+                    System.out.println("Inbox of process " + id + ": " + messages);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    private class MessageGenerator {
+
+        private void send() {
+
+            String alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+            //multicast
+            messengerService.multicast(String.valueOf(alphabet.charAt(id)), getInstances());
+
+            //P2P messages to 4 neighbor processes in a ring
+            messengerService.send("" + id, getInstances()[(id + 2) % getInstances().length]);
+            messengerService.send("" + id, getInstances()[(id + 1) % getInstances().length]);
+            messengerService.send("" + id, getInstances()[(id + getInstances().length - 1) % getInstances().length]);
+            messengerService.send("" + id, getInstances()[(id + getInstances().length - 2) % getInstances().length]);
+
+            //again multicast
+            messengerService.multicast(String.valueOf(alphabet.charAt(25 - id)), getInstances());
         }
     }
 }
