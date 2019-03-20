@@ -36,6 +36,10 @@ public class Process implements Runnable {
             //send multicast and P2P messages from a schedule
             new MessageGenerator().send();
 
+            //wait for the messages to arrive before printing
+            Thread.sleep(4000);
+            System.out.println("Inbox of process " + id + ": " + messages);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -56,7 +60,6 @@ public class Process implements Runnable {
             while (true) {
                 try {
                     messages.add(messengerService.receive());
-                    System.out.println("Inbox of process " + id + ": " + messages);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -84,4 +87,3 @@ public class Process implements Runnable {
         }
     }
 }
-
