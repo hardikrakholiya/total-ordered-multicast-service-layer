@@ -2,7 +2,7 @@ package me.hardikrakholiya.net.api;
 
 import me.hardikrakholiya.net.model.Instance;
 
-public interface MessengerService extends Runnable {
+public interface MessengerService {
 
     public void send(String messageText, Instance instance);
 

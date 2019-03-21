@@ -13,19 +13,19 @@ public class Process implements Runnable {
     private final int id;
     private Instance instance;
     private List<String> messages = new ArrayList<>();
-    private MessengerService messengerService = new MessengerServiceImpl(this);
+    private MessengerService messengerService;
 
     public Process(int id, Instance instance) {
         this.id = id;
         this.instance = instance;
+        this.messengerService = new MessengerServiceImpl(id, instance);
     }
+
 
     @Override
     public void run() {
 
         try {
-            //start a middleware process to handle all the coordination with other processes
-            new Thread(messengerService).start();
 
             //start a thread to receive incoming message from the middleware
             new Thread(new ReceiveMessage()).start();

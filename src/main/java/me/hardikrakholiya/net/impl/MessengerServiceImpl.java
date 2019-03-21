@@ -1,6 +1,5 @@
 package me.hardikrakholiya.net.impl;
 
-import me.hardikrakholiya.Process;
 import me.hardikrakholiya.net.api.MessengerService;
 import me.hardikrakholiya.net.model.Instance;
 import me.hardikrakholiya.net.model.Message;
@@ -21,8 +20,11 @@ import static me.hardikrakholiya.net.model.MessageType.*;
 
 public class MessengerServiceImpl implements MessengerService {
 
-    //master process, the one to which this messenger service serves
-    private Process process;
+    //user process id
+    private int id;
+
+    //socket details for creating a tcp server
+    private Instance instance;
 
     //mailbox for delivering messages to master process
     private BlockingQueue<String> mailbox = new LinkedBlockingQueue<>();
@@ -30,23 +32,10 @@ public class MessengerServiceImpl implements MessengerService {
     //executor service to handle all incoming messages. single threaded for safety
     private ExecutorService messageProcessorService = Executors.newSingleThreadExecutor();
 
-    public MessengerServiceImpl(Process process) {
-        this.process = process;
-    }
-
-    @Override
-    public void run() {
-        //start tcp server to wait for incoming connections
-        try (ServerSocket serverSocket = new ServerSocket(process.getInstance().getPort());
-        ) {
-            while (true) {
-                Socket clientRequest = serverSocket.accept();
-                Message incomingMessage = (Message) new ObjectInputStream(clientRequest.getInputStream()).readObject();
-                messageProcessorService.submit(new ReceiveIncomingMessage(incomingMessage));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public MessengerServiceImpl(int id, Instance instance) {
+        this.id = id;
+        this.instance = instance;
+        new ServerThread().start();
     }
 
     public void send(String messageText, Instance instance) {
@@ -76,13 +65,13 @@ public class MessengerServiceImpl implements MessengerService {
     private Message createOutgoingMessage(String messageText, MessageType messageType) {
         Message message;
         clock++;
-        message = new Message(clock + "." + process.getId(), messageType, messageText);
+        message = new Message(clock + "." + id, messageType, messageText);
         return message;
     }
 
     private void sendOverNetwork(Message message, Instance instance) {
         // if the sender is same as the receiver then don't send over TCP
-        if (instance.equals(this.process.getInstance())) {
+        if (instance.equals(this.instance)) {
             messageProcessorService.submit(new ReceiveIncomingMessage(message));
         }
         // if the sender and the receiver are different, send over TCP
@@ -158,6 +147,24 @@ public class MessengerServiceImpl implements MessengerService {
             }
         }
 
+    }
+
+    private class ServerThread extends Thread {
+
+        @Override
+        public void run() {
+            //start tcp server to wait for incoming connections
+            try (ServerSocket serverSocket = new ServerSocket(instance.getPort());
+            ) {
+                while (true) {
+                    Socket clientRequest = serverSocket.accept();
+                    Message incomingMessage = (Message) new ObjectInputStream(clientRequest.getInputStream()).readObject();
+                    messageProcessorService.submit(new ReceiveIncomingMessage(incomingMessage));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private class ReceiveIncomingMessage implements Runnable {
